@@ -1,0 +1,12 @@
+*.out
+*gravity*/
+*.png
+*.log
+*txt*
+*.sh
+*.hdf5
+Gadget*/
+Coll*/
+Example*/
+*pycache*
+plot_hdf5*
