@@ -239,10 +239,8 @@ class HDF5DataReader:
                 dy = coordinates[i, 1] - coordinates[j, 1]
                 dz = coordinates[i, 2] - coordinates[j, 2]
                 r_ij_dist_sq = dx**2 + dy**2 + dz**2
-                
-                if r_ij_dist_sq > 1e-14: # 避免除以零或極小距離 (cm)
-                    r_ij_dist = np.sqrt(r_ij_dist_sq)
-                    total_potential_energy += -G * masses[i] * masses[j] / r_ij_dist
+                r_ij_dist = np.sqrt(r_ij_dist_sq)
+                total_potential_energy += -G * masses[i] * masses[j] / r_ij_dist
         
         return total_potential_energy
 

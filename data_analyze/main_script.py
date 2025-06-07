@@ -34,6 +34,68 @@ def _generate_output_subdir_name(sample_size, num_snapshots, min_dist_kpc):
         d_str = f"d{min_dist_kpc:.1f}".replace('.', 'p') 
     
     return f"{s_str}_{n_str}_{d_str}"
+def analyze_energy_data_with_interval(energy_data_filepath, snapshot_interval):
+    """
+    從 .npy 檔案讀取能量數據，並根據指定的間隔繪製能量演化圖。
+
+    Args:
+        energy_data_filepath (str): 能量數據 .npy 檔案的路徑。
+        snapshot_interval (int): 用於分析的時間間隔。例如，間隔為 2 表示每隔一個快照分析一次。
+    """
+    if not os.path.exists(energy_data_filepath):
+        print(f"Error: Energy data file not found at {energy_data_filepath}")
+        return
+
+    try:
+        loaded_data = np.load(energy_data_filepath, allow_pickle=True).item()
+        all_snapshot_numbers = loaded_data['snapshot_numbers']
+        all_kinetic_energies = loaded_data['kinetic_energies']
+        all_potential_energies = loaded_data['potential_energies']
+
+        # 根據間隔篩選快照
+        selected_snapshot_numbers = all_snapshot_numbers[::snapshot_interval]
+        selected_kinetic_energies = all_kinetic_energies[::snapshot_interval]
+        selected_potential_energies = all_potential_energies[::snapshot_interval]
+
+        # 建立 AnalysisTools 物件並繪製圖表
+        output_dir_for_analysis = os.path.dirname(energy_data_filepath) # 使用與 .npy 檔案相同的目錄
+        # 從資料夾名稱中提取模擬名稱 (例如 'gravity' 或 'gravity_5')
+        # 並且從路徑中獲取參數子資料夾名稱，用於圖表的 sim_name
+        # 假設結構是 .../sim_name/param_subdir_name/
+        sim_name_from_path = os.path.basename(os.path.dirname(output_dir_for_analysis))
+        param_subdir_name = os.path.basename(output_dir_for_analysis)
+        
+        # 組合 sim_name 和 param_subdir_name 作為 analysis_tools 的 sim_name
+        analysis_sim_name = f"{sim_name_from_path}_{param_subdir_name}"
+
+        analysis_tools = at.AnalysisTools(output_dir_for_analysis, analysis_sim_name)
+
+        # 修改檔名以包含間隔資訊
+        # 例如: gravity_energy_data_interval_5_kinetic_energy_evolution.png
+        # 這樣就不會覆蓋原始的能量圖
+        
+        # 傳遞一個 filename_suffix 讓 plot_energy_evolution 內部處理檔名
+        filename_suffix = f"_interval_{snapshot_interval}"
+        
+        analysis_tools.plot_energy_evolution(
+            selected_snapshot_numbers,
+            selected_kinetic_energies,
+            selected_potential_energies,
+            filename_suffix=filename_suffix # 傳遞新的檔名後綴
+        )
+        # --- 新增：繪製累積平均位力演化圖 ---
+        analysis_tools.plot_cumulative_virial_evolution(
+            selected_snapshot_numbers,
+            selected_kinetic_energies,
+            selected_potential_energies,
+            filename_suffix=filename_suffix # 傳遞新的檔名後綴
+        )
+
+        print(f"Energy analysis with interval {snapshot_interval} complete. Plots saved to {output_dir_for_analysis}")
+
+
+    except Exception as e:
+        print(f"Error analyzing energy data: {e}")
 
 
 def main():
@@ -51,7 +113,7 @@ def main():
     # *** 關鍵參數：粒子採樣大小和位能計算方法 ***
     # 請根據您的需求和計算能力調整這些參數。
     # 如果要使用 O(N^2) 精確位能計算並觀察維里定理，建議將 particle_sample_size 設置為較小的值 (例如 1000)。
-    particle_sample_size = 100000 
+    particle_sample_size = 10000
     
     # 位能計算方法：
     # 'direct': O(N^2) 精確計算所有粒子對的位能。物理上符合維里定理的 U。
@@ -79,7 +141,7 @@ def main():
     utils.ensure_directory_exists(base_output_dir)
 
     # --- 指定要處理的模擬資料夾名稱 ---
-    simulation_dirs_to_process = ['gravity_6'] 
+    simulation_dirs_to_process = ['gravity_9'] 
     # simulation_dirs_to_process = ['gravity', 'gravity_2'] 
     # simulation_dirs_to_process = utils.get_simulation_dirs(parent_data_base_dir, prefix='gravity')
 
@@ -359,6 +421,12 @@ def main():
             kinetic_energies, 
             potential_energies
         )
+        # --- 新增：繪製累積平均位力演化圖 ---
+        analysis_tools.plot_cumulative_virial_evolution(
+            snapshot_numbers_for_energy, 
+            kinetic_energies, 
+            potential_energies
+        )
 
     print("\n" + "="*80)
     print("--- All processing complete! ---")
@@ -366,8 +434,16 @@ def main():
 
 # 當此腳本作為主程式運行時，執行 main 函數
 if __name__ == '__main__':
-    main()
+    #main()
 
+    
+    #======================================plot energy only===============================================
+    case = 7
+    energy_data_file = f'/data/astr6605/data_analyze/result/gravity_{case}/s100k_n512_d0/gravity_{case}_energy_data.npy' # 替換為您的實際檔案路徑
+    snapshot_interval_to_analyze = 1
+    analyze_energy_data_with_interval(energy_data_file, snapshot_interval_to_analyze)
+    #=====================================================================================================
+    
     # 如果需要測試 HDF5DataReader 的結構打印功能，可以這樣調用：
-    # print("\n--- Testing HDF5 structure print function ---")
-    # dr.HDF5DataReader.print_structure('/data/astr6605/gravity/output/snapshot_000.hdf5')
+    #print("\n--- Testing HDF5 structure print function ---")
+    #dr.HDF5DataReader.print_structure('/data/astr6605/gravity_9/output/snapshot_000.hdf5')
